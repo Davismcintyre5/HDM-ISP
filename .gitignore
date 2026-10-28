@@ -26,7 +26,6 @@ client/node_modules/
 # ─────────────────────────────────────────────
 # Build output (client/dist IS tracked)
 # ─────────────────────────────────────────────
-/dist/
 /build/
 /out/
 client/build/
