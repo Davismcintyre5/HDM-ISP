@@ -238,9 +238,8 @@ async function handleInvoicePayment(tx, parsed, req) {
   const billingPlan = await BillingPlan.findById(planId);
   if (!billingPlan) return;
 
-  let activation;
   try {
-    activation = await activateProviderPlan(provider, billingPlan, { sendEmails: true });
+    await activateProviderPlan(provider, billingPlan, { sendEmails: true });
   } catch (err) {
     console.error('[webhook] activation failed:', err.message);
     return;
@@ -294,10 +293,6 @@ async function handleProviderUpgrade(tx, parsed, req) {
 }
 
 const mpesaCallback = asyncHandler(async (req, res) => {
-  if (!mpesaService.isSafaricomIp(req.ip)) {
-    return res.status(403).json({ success: false, message: 'Forbidden' });
-  }
-
   const parsed = mpesaService.parseCallback(req.body);
   if (!parsed.checkoutRequestId) {
     return res.status(200).json({ success: true });

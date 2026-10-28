@@ -22,6 +22,11 @@ const errorHandler = require('./middleware/global/errorHandler');
 const app = express();
 const { port: PORT, appName: APP_NAME, nodeEnv: NODE_ENV } = config;
 
+const IS_PROD = NODE_ENV === 'production';
+
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
+
 function findDir(candidates) {
   for (const candidate of candidates) {
     try {
@@ -111,7 +116,8 @@ if (fs.existsSync(PORTAL_INDEX)) {
     '/portal',
     express.static(PORTAL_DIR, {
       index: 'index.html',
-      maxAge: NODE_ENV === 'production' ? '1h' : 0,
+      maxAge: IS_PROD ? '1h' : 0,
+      etag: !IS_PROD,
     })
   );
 
@@ -132,7 +138,9 @@ if (fs.existsSync(CLIENT_INDEX)) {
   app.use(
     express.static(CLIENT_DIST, {
       index: false,
-      maxAge: NODE_ENV === 'production' ? '1h' : 0,
+      maxAge: IS_PROD ? '1y' : 0,
+      immutable: IS_PROD,
+      etag: !IS_PROD,
     })
   );
 }
@@ -182,7 +190,9 @@ async function start() {
 
   server = app.listen(PORT, () => {
     console.log(
-      `[startup] ${APP_NAME} ready on ${config.appUrl} (portal ${fs.existsSync(PORTAL_INDEX) ? `${config.appUrl}/portal` : 'not installed'})`
+      `[startup] ${APP_NAME} ready on ${config.appUrl} (portal ${
+        fs.existsSync(PORTAL_INDEX) ? `${config.appUrl}/portal` : 'not installed'
+      })`
     );
 
     keepAlive.startKeepAlive();

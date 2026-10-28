@@ -11,13 +11,6 @@ class MpesaError extends Error {
   }
 }
 
-const SAFARICOM_IPS = [
-  '196.201.214.200', '196.201.214.206', '196.201.213.114',
-  '196.201.214.207', '196.201.214.208', '196.201.213.44',
-  '196.201.212.127', '196.201.212.138', '196.201.212.129',
-  '196.201.212.136', '196.201.212.74', '196.201.212.69',
-];
-
 const RESULT_CODES = {
   SUCCESS: '0',
   INSUFFICIENT_FUNDS: '1',
@@ -298,12 +291,6 @@ function isDuplicateCallback(checkoutRequestId) {
   return false;
 }
 
-function isSafaricomIp(ip) {
-  if (!ip) return false;
-  const clean = String(ip).replace('::ffff:', '').split(',')[0].trim();
-  return SAFARICOM_IPS.includes(clean);
-}
-
 async function waitForResult(checkoutRequestId, { timeoutMs = 300000, intervalMs = 3000 } = {}) {
   const start = Date.now();
   const pendingCodes = new Set([
@@ -332,9 +319,7 @@ module.exports = {
   parseCallback,
   normalizePhone,
   isDuplicateCallback,
-  isSafaricomIp,
   waitForResult,
   MpesaError,
-  SAFARICOM_IPS,
   RESULT_CODES,
 };
