@@ -34,14 +34,14 @@ export default function Sidebar() {
   return (
     <aside
       className={cn(
-        'hidden md:flex flex-col border-r bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all',
+        'hidden md:flex flex-col h-screen shrink-0 border-r bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all',
         sidebarCollapsed ? 'w-16' : 'w-60'
       )}
     >
-      <div className="h-14 flex items-center px-4 border-b border-slate-200 dark:border-slate-800">
+      <div className="h-14 shrink-0 flex items-center px-4 border-b border-slate-200 dark:border-slate-800">
         <Logo showWordmark={!sidebarCollapsed} size="sm" />
       </div>
-      <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
         {NAV.map(({ to, label, icon: Icon, badge }) => (
           <NavLink
             key={to}
@@ -67,7 +67,7 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="p-3 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
+      <div className="shrink-0 p-3 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
         {!sidebarCollapsed && <>© {new Date().getFullYear()} HDM</>}
       </div>
     </aside>

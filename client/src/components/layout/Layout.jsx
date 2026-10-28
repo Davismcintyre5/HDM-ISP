@@ -7,12 +7,9 @@ import ToastHost from '../ui/ToastHost';
 import CookieConsent from '../public/CookieConsent';
 import Spinner from '../ui/Spinner';
 import { useAuth } from '../../context/AuthContext';
-import { useSite } from '../../context/SiteContext';
-import { cn } from '../../utils/cn';
 
 export default function Layout() {
   const { booting } = useAuth();
-  const { sidebarCollapsed } = useSite();
 
   if (booting) {
     return (
@@ -23,14 +20,16 @@ export default function Layout() {
   }
 
   return (
-    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="h-screen flex bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden">
       <Sidebar />
-      <div className={cn('flex-1 flex flex-col min-w-0', 'transition-all')}>
+      <div className="flex-1 flex flex-col min-w-0 h-screen">
         <Header />
-        <main className="flex-1 p-4 md:p-6">
-          <Outlet />
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-4 md:p-6">
+            <Outlet />
+          </div>
+          <Footer />
         </main>
-        <Footer />
       </div>
       <MobileNav />
       <ToastHost />

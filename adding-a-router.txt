@@ -1,0 +1,499 @@
+========================================================================
+  HDM TECHNOLOGIES — ADDING A MIKROTIK ROUTER
+========================================================================
+
+This guide walks through every step required to connect a MikroTik
+router to the HDM billing system so that WiFi plans, vouchers, and
+RADIUS authentication work end to end.
+
+Two sides must be configured:
+
+  1. The router, via Winbox or SSH.
+  2. The provider dashboard, by entering the router's details.
+
+If any step is skipped, the router may appear "online" in the
+dashboard but customers will not be able to log in. Follow every
+step in order.
+
+
+------------------------------------------------------------------------
+  PART 1 — WHAT YOU NEED BEFORE STARTING
+------------------------------------------------------------------------
+
+  Backend server IP         The public IP of the HDM backend server.
+                            Example: 203.0.113.50
+
+  RADIUS shared secret      The value of RADIUS_SHARED_SECRET in the
+                            backend .env file. Ask your platform admin
+                            if you do not have it.
+
+  Router public IP          The MikroTik's IP as seen from the
+                            backend server. If the router is behind
+                            NAT, this may be a VPN address.
+
+  Router admin access       Winbox or SSH access to the router with
+                            full permissions.
+
+  RouterOS API port         Default 8728. Port 8729 for API-SSL.
+
+
+------------------------------------------------------------------------
+  PART 2 — CONFIGURE THE ROUTER
+------------------------------------------------------------------------
+
+STEP 1 — ENABLE THE ROUTEROS API
+--------------------------------
+
+The billing system connects to the router over the RouterOS API.
+This service is disabled by default on many routers.
+
+  Winbox:
+    IP -> Services
+    Find "api" in the list
+    Double-click -> uncheck "Disabled"
+    Port: 8728
+    Available From: enter the backend server IP (recommended)
+    Click OK
+
+  CLI:
+    /ip service enable api
+    /ip service set api port=8728
+    /ip service set api address=203.0.113.50/32
+
+Replace 203.0.113.50 with your backend server IP. Leaving the
+"address" field blank allows any IP to connect — convenient for
+testing, dangerous for production.
+
+
+STEP 2 — CREATE A DEDICATED API USER
+------------------------------------
+
+Never use the "admin" account for the billing system. Create a
+user that can only connect from the backend server.
+
+  Winbox:
+    System -> Users -> +
+    Name: hdm-api
+    Group: full
+    Password: (16+ characters, random)
+    Allowed Address: 203.0.113.50/32
+    Click OK
+
+  CLI:
+    /user add name=hdm-api group=full password=YOUR_STRONG_PASSWORD
+          address=203.0.113.50/32
+
+Save the password. You will enter it in the provider dashboard
+later. If you lose it, reset it here — do not use the "admin"
+account as a workaround.
+
+
+STEP 3 — ADD THE RADIUS CLIENT
+------------------------------
+
+This tells the router to authenticate users against FreeRADIUS
+running on the backend server.
+
+  Winbox:
+    IP -> RADIUS -> +
+    Service: check "hotspot" (and "pppoe" if you use PPPoE plans)
+    Address: 203.0.113.50 (backend server IP)
+    Secret: (RADIUS_SHARED_SECRET from .env)
+    Authentication Port: 1812
+    Accounting Port: 1813
+    Timeout: 3000 (milliseconds)
+    Click OK
+
+  CLI:
+    /radius add service=hotspot \
+      address=203.0.113.50 \
+      secret=YOUR_RADIUS_SHARED_SECRET \
+      authentication-port=1812 \
+      accounting-port=1813 \
+      timeout=3s
+
+CRITICAL: The Secret must match RADIUS_SHARED_SECRET on the backend
+exactly. One wrong character causes silent failures — the router
+discards every RADIUS reply, users see "invalid username or password"
+even though their credentials are correct.
+
+
+STEP 4 — CONFIGURE THE HOTSPOT PROFILE
+--------------------------------------
+
+This enables RADIUS for the hotspot and turns on accounting so the
+billing system sees session data.
+
+  Winbox:
+    IP -> Hotspot -> Server Profiles
+    Select your hotspot profile (usually "hsprof1")
+    Go to the RADIUS tab
+    Check "Use RADIUS"
+    Check "RADIUS Accounting"
+    RADIUS Interim Update: 5m
+    Click OK
+
+  CLI:
+    /ip hotspot profile set [find] use-radius=yes
+      radius-accounting=yes radius-interim-update=5m
+
+If no hotspot profile exists yet, run the setup wizard first:
+
+  CLI:
+    /ip hotspot setup
+
+Answer the prompts: interface (e.g. bridge-local), local IP
+(e.g. 192.168.88.1/24), address pool, SSID, etc. The wizard creates
+"hsprof1" automatically. Then apply the RADIUS settings above.
+
+Interim update controls how often the router reports usage to the
+backend. 5m is a good balance — too short floods RADIUS with traffic,
+too long means expired users stay online until the next update.
+
+
+STEP 5 — ALLOW OUTBOUND RADIUS TRAFFIC
+--------------------------------------
+
+If the router's firewall blocks outbound UDP, RADIUS packets never
+reach the backend.
+
+  Winbox:
+    IP -> Firewall -> Filter Rules
+    Add rule:
+      Chain: output
+      Protocol: udp
+      Dst. Address: 203.0.113.50
+      Dst. Port: 1812,1813
+      Action: accept
+    Move this rule above any drop rules in the output chain.
+
+  CLI:
+    /ip firewall filter add chain=output protocol=udp \
+      dst-address=203.0.113.50 dst-port=1812,1813 action=accept
+
+Most MikroTik routers do not firewall outbound traffic by default.
+If you have never added a drop rule to the output chain, skip this
+step. If unsure, run:
+
+  /ip firewall filter print where chain=output
+
+If the list is empty, no rule is needed.
+
+
+STEP 6 — ENABLE NTP
+-------------------
+
+RADIUS accounting timestamps come from the router's clock. A wrong
+clock causes session records with wrong start/stop times, and
+expiry calculations in the billing system will misbehave.
+
+  Winbox:
+    System -> NTP Client
+    Check "Enabled"
+    Mode: unicast
+    Servers: pool.ntp.org
+    Click OK
+
+  CLI:
+    /system ntp client set enabled=yes mode=unicast servers=pool.ntp.org
+
+Verify the clock is correct:
+
+  /system clock print
+
+If it still shows a wrong time after 60 seconds, the router cannot
+reach the internet — check DNS and default route.
+
+
+STEP 7 — CONFIGURE THE WALLED GARDEN
+------------------------------------
+
+Before a customer pays, they are unauthenticated. Their device can
+only reach URLs explicitly allowed in the walled garden. The captive
+portal and the M-Pesa STK flow both need to be reachable before
+payment.
+
+  Winbox:
+    IP -> Hotspot -> Walled Garden
+    Add entries:
+
+      Dst. Host: portal.yourdomain.com
+      Action: allow
+
+      Dst. Host: api.yourdomain.com
+      Action: allow
+
+      Dst. Host: api.safaricom.co.ke
+      Action: allow
+
+      Dst. Host: safaricom.co.ke
+      Action: allow
+
+Replace the domains with your actual portal and API domains. The
+Safaricom entries are required only if the STK prompt is triggered
+from the portal itself (which is how HDM does it).
+
+Without these entries, customers see a certificate error or timeout
+when the portal tries to load. They cannot pay, so they cannot get
+online.
+
+
+STEP 8 — SAVE AND BACKUP
+------------------------
+
+Export the router configuration so you can restore it later:
+
+  Winbox:
+    Files -> Backup
+    Name: before-hdm-YYYYMMDD
+    Click Backup
+
+  CLI:
+    /system backup save name=before-hdm-YYYYMMDD
+    /export file=before-hdm-YYYYMMDD
+
+Copy the backup files off the router to your local machine. If the
+router is reset or replaced, you can restore the configuration
+without redoing every step.
+
+
+------------------------------------------------------------------------
+  PART 3 — ADD THE ROUTER IN THE PROVIDER DASHBOARD
+------------------------------------------------------------------------
+
+STEP 9 — OPEN THE ADD ROUTER FORM
+---------------------------------
+
+Log in to the provider dashboard and navigate to:
+
+  Routers -> Add router
+
+Fill in the form:
+
+  Name             A label you will recognise. Example: "Nairobi CBD"
+  IP address       The router's public IP as seen from the backend.
+  API port         8728 (default)
+  Site name        Optional. Example: "Nairobi CBD"
+  API username     hdm-api (from Step 2)
+  API password     The password you set in Step 2
+  RADIUS secret    The same secret from Step 3
+
+
+STEP 10 — TEST THE CONNECTION
+-----------------------------
+
+Click "Test" on the router card after saving.
+
+  Success: the status badge turns green ("online") and a toast
+  confirms the router is reachable.
+
+  Failure: the error message tells you which step is wrong:
+
+    "Connection timed out"
+      -> Step 1: API service disabled, or firewall blocking port 8728
+      -> If the router is behind NAT, open the port or set up a VPN
+
+    "Connection refused"
+      -> Step 1: API enabled on the wrong port, or service stopped
+
+    "Login failed" or "Invalid user name or password"
+      -> Step 2: wrong API username or password
+
+    "Connection reset"
+      -> Step 1: "Available From" on the API service does not
+         include the backend server IP
+
+If the test succeeds, the router is fully connected. Do not skip
+this step — a router that has not been tested is a router that will
+fail on the first customer login.
+
+
+------------------------------------------------------------------------
+  PART 4 — VERIFY END-TO-END
+------------------------------------------------------------------------
+
+STEP 11 — CONNECT A TEST DEVICE
+-------------------------------
+
+  1. Connect a phone or laptop to the hotspot WiFi.
+  2. The device should be redirected to the captive portal.
+  3. The portal should list the provider's active plans.
+
+If the portal does not load, the walled garden (Step 7) is missing
+entries.
+
+
+STEP 12 — BUY AND REDEEM A VOUCHER
+----------------------------------
+
+  1. From the portal, buy a plan via M-Pesa.
+  2. Complete the STK prompt on the phone.
+  3. The portal should show the voucher code.
+  4. The customer receives the same code via SMS and email.
+
+Behind the scenes:
+
+  - The M-Pesa webhook creates a Customer record.
+  - A Voucher record is created with status "used".
+  - The portal shows the code on the success page.
+
+If no voucher appears, check:
+
+  - The backend log for "webhook" entries.
+  - The provider dashboard -> Transactions.
+  - The provider dashboard -> Customers.
+
+
+STEP 13 — LOG IN AND VERIFY RATE LIMIT
+--------------------------------------
+
+  1. On the portal, enter the voucher code.
+  2. The device should be granted internet access.
+  3. On the router: IP -> Hotspot -> Active — the device appears
+     with an uptime counter.
+
+To verify the rate limit is applied:
+
+  IP -> Queues -> Simple Queues (if you use them)
+  or
+  IP -> Hotspot -> Active -> double-click the user
+
+The Rate Limit field should match the plan's rate (e.g. 10M/10M).
+
+If the user logs in but bandwidth is unlimited, check:
+
+  - The plan has rateLimitDownKbps / rateLimitUpKbps set.
+  - The backend returned a Mikrotik-Rate-Limit attribute in the
+    RADIUS Access-Accept.
+  - FreeRADIUS debug (freeradius -X) shows the attribute being sent.
+
+
+STEP 14 — VERIFY ACCOUNTING
+---------------------------
+
+  1. From the dashboard, open Reports -> Sessions.
+  2. The test user's session should appear with live bytes in/out.
+  3. After logout or timeout, the session should have a stop time
+     and total bytes.
+
+If sessions show 0 bytes, RADIUS accounting is not enabled on the
+hotspot profile. Go back to Step 4.
+
+
+------------------------------------------------------------------------
+  PART 5 — TROUBLESHOOTING
+------------------------------------------------------------------------
+
+The router test passes but no customers can log in
+  - RADIUS client missing or secret mismatch (Step 3).
+  - RADIUS accounting disabled on the hotspot profile (Step 4).
+  - FreeRADIUS not running on the backend.
+
+Customers connect to WiFi but the portal never loads
+  - Walled garden missing portal domain (Step 7).
+  - Portal DNS not resolving — test from a normal browser first.
+
+Customers see "invalid username or password" even with correct code
+  - RADIUS secret mismatch between router and backend (Step 3).
+  - Check FreeRADIUS debug output for the actual reason.
+
+Customers get disconnected every 5 minutes
+  - Session-Timeout or interim update mismatch.
+  - Check RADIUS_DEFAULT_SESSION_TIMEOUT in .env. Should be
+    >= the plan's validity (e.g. 3600 for a 1-hour plan).
+
+Sessions record 0 bytes in reports
+  - RADIUS accounting disabled (Step 4).
+  - Interim update not reaching the backend (firewall).
+
+Router test fails with "Connection timed out"
+  - API service disabled (Step 1).
+  - Firewall blocking port 8728.
+  - Router behind NAT — open the port or set up a VPN between the
+    backend and the router (WireGuard is the easiest option).
+
+
+------------------------------------------------------------------------
+  PART 6 — SECURITY CHECKLIST
+------------------------------------------------------------------------
+
+Before going live, verify:
+
+  [ ] API service restricted to the backend server IP only
+  [ ] API user "hdm-api" (not "admin"), strong password
+  [ ] "Allowed Address" on the API user is the backend IP
+  [ ] RADIUS secret is at least 32 characters, random
+  [ ] Hotspot profile uses RADIUS for auth and accounting
+  [ ] NTP enabled so timestamps are accurate
+  [ ] Walled garden only allows what is needed (portal + Safaricom)
+  [ ] Router configuration backed up locally
+  [ ] Router admin password is strong and not the default
+  [ ] HTTPS certificate on the portal is valid (no browser warnings)
+
+If any item is unchecked, fix it before connecting real customers.
+
+
+------------------------------------------------------------------------
+  APPENDIX A — QUICK COMMAND REFERENCE
+------------------------------------------------------------------------
+
+Everything from Part 2 in one block, for SSH users. Replace the
+placeholder values before pasting.
+
+  # Enable API
+  /ip service enable api
+  /ip service set api port=8728 address=203.0.113.50/32
+
+  # Create API user
+  /user add name=hdm-api group=full password=YOUR_STRONG_PASSWORD \
+        address=203.0.113.50/32
+
+  # Add RADIUS client
+  /radius add service=hotspot address=203.0.113.50 \
+           secret=YOUR_RADIUS_SHARED_SECRET \
+           authentication-port=1812 accounting-port=1813 timeout=3s
+
+  # Configure hotspot profile
+  /ip hotspot profile set [find] use-radius=yes \
+    radius-accounting=yes radius-interim-update=5m
+
+  # Enable NTP
+  /system ntp client set enabled=yes mode=unicast servers=pool.ntp.org
+
+  # Walled garden (adjust domains)
+  /ip hotspot walled-garden add dst-host=portal.yourdomain.com action=allow
+  /ip hotspot walled-garden add dst-host=api.yourdomain.com action=allow
+  /ip hotspot walled-garden add dst-host=*.safaricom.co.ke action=allow
+
+  # Backup
+  /system backup save name=before-hdm
+  /export file=before-hdm
+
+
+------------------------------------------------------------------------
+  APPENDIX B — CHECKING RADIUS CONNECTIVITY
+------------------------------------------------------------------------
+
+Test from the router:
+
+  /radius monitor 0
+
+Shows:
+
+  pending-requests
+  accepts           (should increment with each successful login)
+  rejects           (should increment with each failed login)
+  timeouts          (should be 0 if the backend is reachable)
+
+If accepts and rejects stay at 0 while pending-requests climbs, the
+router is sending packets but the backend is not responding.
+Check:
+
+  - Backend firewall allows UDP 1812/1813.
+  - FreeRADIUS is running: systemctl status freeradius
+  - FreeRADIUS debug: freeradius -X in a terminal
+
+
+========================================================================
+  END OF GUIDE
+========================================================================

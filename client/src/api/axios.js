@@ -1,10 +1,8 @@
 import axios from 'axios';
 import { KEYS, storage } from '../utils/storage';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
 export const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: '',
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -33,7 +31,7 @@ async function performRefresh() {
   if (!refreshToken) throw new Error('No refresh token');
 
   const { data } = await axios.post(
-    `${BASE_URL}/api/public/auth/provider/refresh`,
+    '/api/public/auth/provider/refresh',
     { refreshToken },
     { headers: { 'Content-Type': 'application/json' } }
   );

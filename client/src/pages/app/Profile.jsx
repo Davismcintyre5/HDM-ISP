@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Save, Upload, KeyRound, RefreshCw } from 'lucide-react';
+import { Save, Upload, Trash2, KeyRound, RefreshCw } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -11,6 +11,7 @@ import {
   updateProfile,
   changePassword,
   uploadAvatar,
+  removeAvatar,
 } from '../../api/profile';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -26,10 +27,11 @@ export default function Profile() {
     businessName: provider?.name || '',
     phone: user?.phone || provider?.phone || '',
   });
-  const [avatarUrl, setAvatarUrl] = useState(provider?.logoUrl || '');
+  const [avatarUrl, setAvatarUrl] = useState(provider?.avatarUrl || '');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const fileInputRef = useRef(null);
 
   const [pwd, setPwd] = useState({ currentPassword: '', newPassword: '', confirm: '' });
@@ -46,7 +48,7 @@ export default function Profile() {
         businessName: p.name || '',
         phone: u.phone || p.phone || '',
       });
-      setAvatarUrl(p.logoUrl || '');
+      setAvatarUrl(p.avatarUrl || '');
       setUser(u);
       setProvider(p);
     } catch (err) {
@@ -80,6 +82,7 @@ export default function Profile() {
         businessName: data.data.provider.name || '',
         phone: data.data.user.phone || data.data.provider.phone || '',
       });
+      setAvatarUrl(data.data.provider.avatarUrl || '');
       toast.success('Profile updated');
     } catch (err) {
       toast.error(errors.fromAxios(err).message);
@@ -102,14 +105,28 @@ export default function Profile() {
     setUploading(true);
     try {
       const { data } = await uploadAvatar(file);
-      setAvatarUrl(data.data.logoUrl);
-      setProvider((p) => ({ ...(p || {}), logoUrl: data.data.logoUrl }));
-      toast.success('Logo updated');
+      setAvatarUrl(data.data.avatarUrl);
+      setProvider((p) => ({ ...(p || {}), avatarUrl: data.data.avatarUrl }));
+      toast.success('Avatar updated');
     } catch (err) {
       toast.error(errors.fromAxios(err).message);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  async function onRemoveAvatar() {
+    setRemoving(true);
+    try {
+      await removeAvatar();
+      setAvatarUrl('');
+      setProvider((p) => ({ ...(p || {}), avatarUrl: '' }));
+      toast.success('Avatar removed');
+    } catch (err) {
+      toast.error(errors.fromAxios(err).message);
+    } finally {
+      setRemoving(false);
     }
   }
 
@@ -138,7 +155,7 @@ export default function Profile() {
     <div>
       <PageHeader
         title="Profile"
-        description="Your account details, business logo, and password."
+        description="Your account details, avatar, and password."
         actions={
           <Button
             variant="secondary"
@@ -160,18 +177,14 @@ export default function Profile() {
         <div className="space-y-4">
           <Card padding="md">
             <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">
-              Business logo
+              Avatar
             </div>
             <div className="flex items-center gap-4">
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt="Business logo"
-                  className="h-16 w-16 rounded-xl object-contain border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-1"
-                />
-              ) : (
-                <Avatar name={profile.businessName || profile.name || 'P'} size="lg" />
-              )}
+              <Avatar
+                name={profile.name || profile.businessName || 'P'}
+                src={avatarUrl}
+                size="lg"
+              />
               <div className="flex-1">
                 <input
                   ref={fileInputRef}
@@ -180,15 +193,28 @@ export default function Profile() {
                   onChange={onAvatarSelected}
                   className="hidden"
                 />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  leftIcon={<Upload className="h-3.5 w-3.5" />}
-                  onClick={pickAvatar}
-                  loading={uploading}
-                >
-                  Upload image
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={<Upload className="h-3.5 w-3.5" />}
+                    onClick={pickAvatar}
+                    loading={uploading}
+                  >
+                    Upload avatar
+                  </Button>
+                  {avatarUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+                      onClick={onRemoveAvatar}
+                      loading={removing}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   PNG, JPG, WEBP, or GIF · max 2 MB
                 </p>

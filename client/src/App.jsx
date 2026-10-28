@@ -3,6 +3,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider } from './context/AuthContext';
 import { SiteProvider } from './context/SiteContext';
+import ManifestLink from './components/ManifestLink';
 import AppRoutes from './routes/AppRoutes';
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
         <ToastProvider>
           <AuthProvider>
             <SiteProvider>
+              <ManifestLink />
               <AppRoutes />
             </SiteProvider>
           </AuthProvider>

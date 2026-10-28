@@ -71,12 +71,10 @@ export default function AppRoutes() {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/profile" element={<Profile />} />
-
           <Route path="/billing" element={<Billing />} />
           <Route path="/billing/invoices" element={<Invoices />} />
           <Route path="/billing/invoices/:id" element={<InvoiceDetail />} />
           <Route path="/billing/transactions" element={<BillingTransactions />} />
-
           <Route path="*" element={<NotFound />} />
         </Route>
       </Route>

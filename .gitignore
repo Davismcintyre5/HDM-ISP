@@ -8,6 +8,7 @@ node_modules/
 .yarn/cache
 .yarn/unplugged
 .yarn/install-state.gz
+client/node_modules/
 
 # ─────────────────────────────────────────────
 # Environment
@@ -23,20 +24,18 @@ node_modules/
 *.env.bak
 
 # ─────────────────────────────────────────────
-# Build output
+# Build output (client/dist IS tracked)
 # ─────────────────────────────────────────────
-dist/
-build/
-out/
-.next/
-.nuxt/
-.vite/
+/dist/
+/build/
+/out/
+client/build/
+client/.vite/
+client/.cache/
 .cache/
 .parcel-cache/
 .turbo/
 .esbuild/
-server/public/build/
-client/dist/
 
 # ─────────────────────────────────────────────
 # Logs
@@ -56,7 +55,6 @@ lerna-debug.log*
 coverage/
 .nyc_output/
 *.lcov
-.nyc_output
 
 # ─────────────────────────────────────────────
 # Editor and IDE
@@ -103,8 +101,6 @@ tmp/
 # Uploads and generated files
 # ─────────────────────────────────────────────
 uploads/
-server/uploads/
-client/uploads/
 public/uploads/
 
 # ─────────────────────────────────────────────
@@ -137,20 +133,21 @@ credentials/
 keys/
 
 # ─────────────────────────────────────────────
-# Vite
+# Vite and PWA
 # ─────────────────────────────────────────────
-client/.vite/
-client/dist/
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+client/public/pwa-*.png
+client/public/maskable-icon-*.png
+client/public/apple-touch-icon-*.png
+client/public/favicon.ico
 
 # ─────────────────────────────────────────────
-# Vercel / Netlify / other deploy artifacts
+# Deploy artifacts
 # ─────────────────────────────────────────────
 .vercel/
 .netlify/
 .firebase/
-.vercel
 
 # ─────────────────────────────────────────────
 # Misc

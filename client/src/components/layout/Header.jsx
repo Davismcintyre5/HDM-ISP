@@ -8,11 +8,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useSite } from '../../context/SiteContext';
 
 export default function Header() {
-  const { user, logout } = useAuth();
+  const { user, provider, logout } = useAuth();
   const { toggleSidebar, openMobileNav, unreadCount, sidebarCollapsed, siteSettings } = useSite();
   const navigate = useNavigate();
 
   const appName = siteSettings?.['branding.appName'] || 'HDM';
+  const displayName = user?.name || provider?.name || 'Provider';
+  const avatarSrc = provider?.avatarUrl || provider?.logoUrl || null;
 
   function handleLogout() {
     logout();
@@ -54,19 +56,22 @@ export default function Header() {
         <Dropdown
           trigger={
             <button className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-slate-100 dark:hover:bg-slate-800">
-              <Avatar name={user?.name || 'P'} size="sm" />
+              <Avatar name={displayName} src={avatarSrc} size="sm" />
               <span className="hidden md:block text-sm text-slate-700 dark:text-slate-200 max-w-32 truncate">
-                {user?.name || 'Provider'}
+                {displayName}
               </span>
             </button>
           }
         >
-          <div className="px-3 py-2 border-b border-slate-200 dark:border-slate-800">
-            <div className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
-              {user?.name || 'Provider'}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-              {user?.email || ''}
+          <div className="px-3 py-2 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2">
+            <Avatar name={displayName} src={avatarSrc} size="md" />
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                {displayName}
+              </div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                {user?.email || provider?.email || ''}
+              </div>
             </div>
           </div>
           <DropdownItem icon={<User className="h-4 w-4" />} onClick={() => navigate('/profile')}>

@@ -19,3 +19,7 @@ export function uploadAvatar(file) {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 }
+
+export function removeAvatar() {
+  return api.delete('/api/client/profile/avatar');
+}

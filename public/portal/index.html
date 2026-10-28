@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#2563eb">
+  <title>WiFi Portal</title>
+  <link rel="stylesheet" href="/portal/styles.css">
+</head>
+<body>
+  <div id="app">
+    <header id="header">
+      <div id="logo-wrap" hidden>
+        <img id="logo" src="" alt="Provider logo">
+      </div>
+      <h1 id="provider-name">Loading…</h1>
+      <p id="provider-support" hidden></p>
+    </header>
+
+    <main id="main">
+      <section id="screen-loading" class="screen">
+        <div class="spinner" aria-label="Loading"></div>
+        <p class="muted">Connecting to WiFi…</p>
+      </section>
+
+      <section id="screen-error" class="screen" hidden>
+        <div class="icon-warn">!</div>
+        <h2>WiFi unavailable</h2>
+        <p id="error-message" class="muted"></p>
+        <button id="error-retry" class="btn btn-secondary">Retry</button>
+      </section>
+
+      <section id="screen-plans" class="screen" hidden>
+        <h2>Choose a plan</h2>
+        <p class="muted" id="plans-hint">Pick a package to get online.</p>
+        <div id="plans-list" class="plans-grid"></div>
+      </section>
+
+      <section id="screen-payment" class="screen" hidden>
+        <h2>Pay with M-Pesa</h2>
+        <div id="selected-plan-summary" class="summary"></div>
+        <form id="payment-form" autocomplete="off">
+          <label for="phone">M-Pesa phone number</label>
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            inputmode="numeric"
+            placeholder="254712345678"
+            autocomplete="tel"
+            required
+          >
+          <p class="hint">Enter the number that will receive the STK prompt.</p>
+          <button type="submit" class="btn btn-primary" id="payment-submit">
+            Send payment prompt
+          </button>
+        </form>
+        <button type="button" class="btn btn-ghost" id="payment-back">
+          ← Back to plans
+        </button>
+        <div id="payment-status" class="status-box" hidden></div>
+      </section>
+
+      <section id="screen-voucher" class="screen" hidden>
+        <div class="icon-success">✓</div>
+        <h2>Payment received</h2>
+        <p class="muted">Use this code to log in to the WiFi.</p>
+        <div id="voucher-code" class="voucher-code"></div>
+        <p class="hint" id="voucher-hint">
+          The code was also sent to your phone by SMS.
+        </p>
+        <button type="button" class="btn btn-primary" id="voucher-continue">
+          Continue to login
+        </button>
+      </section>
+
+      <section id="screen-success" class="screen" hidden>
+        <div class="icon-success">✓</div>
+        <h2>You're connected</h2>
+        <p class="muted">Enjoy your WiFi.</p>
+      </section>
+    </main>
+
+    <footer id="footer">
+      <p id="footer-support" class="muted small" hidden></p>
+      <p class="muted small" id="footer-powered" hidden></p>
+    </footer>
+  </div>
+
+  <script src="/portal/portal.js"></script>
+</body>
+</html>

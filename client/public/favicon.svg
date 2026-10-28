@@ -1,21 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <style>
-    .bg   { fill: #2563eb; }
-    .fg   { fill: #ffffff; }
-    .ring { fill: none; stroke: #ffffff; stroke-width: 2; opacity: 0.35; }
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+  </defs>
 
-    @media (prefers-color-scheme: dark) {
-      .bg   { fill: #3b82f6; }
-      .ring { opacity: 0.25; }
-    }
-  </style>
+  <rect x="32" y="32" width="448" height="448" rx="96" ry="96" fill="url(#g)" />
 
-  <rect class="bg" x="4" y="4" width="56" height="56" rx="14" />
-  <circle class="ring" cx="32" cy="32" r="22" />
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#ffffff" stroke-opacity="0.15" stroke-width="8" />
 
-  <!-- H -->
-  <path class="fg" d="M18 22h4v8h8v-8h4v20h-4v-8h-8v8h-4z" />
+  <path
+    d="M168 168 h48 v72 h80 v-72 h48 v176 h-48 v-64 h-80 v64 h-48 z"
+    fill="#ffffff"
+  />
 
-  <!-- dot -->
-  <circle class="fg" cx="42" cy="40" r="3" />
+  <circle cx="352" cy="352" r="20" fill="#ffffff" />
 </svg>
