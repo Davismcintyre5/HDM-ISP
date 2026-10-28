@@ -25,8 +25,8 @@ const { port: PORT, appName: APP_NAME, nodeEnv: NODE_ENV } = config;
 const IS_PROD = NODE_ENV === 'production';
 
 const TRUST_PROXY_HOPS =
-  process.env.RENDER ? 2 :
   process.env.TRUST_PROXY_HOPS ? Number(process.env.TRUST_PROXY_HOPS) :
+  process.env.RENDER ? 3 :
   1;
 
 app.set('trust proxy', TRUST_PROXY_HOPS);
@@ -266,7 +266,7 @@ process.on('unhandledRejection', (reason) => {
 });
 
 process.on('uncaughtException', (err) => {
-  console.error('[process] Uncaught exception:', err.message);
+  console.error('[shutdown] Uncaught exception:', err.message);
   shutdown('uncaughtException');
 });
 

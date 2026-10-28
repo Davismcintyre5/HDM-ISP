@@ -23,14 +23,24 @@ function normalizeIp(ip) {
   return String(ip).replace(/^::ffff:/, '').trim();
 }
 
+function extractClientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.length > 0) {
+    const first = xff.split(',')[0].trim();
+    if (first) return normalizeIp(first);
+  }
+  return normalizeIp(req.ip);
+}
+
 module.exports = function mpesaIpAllowlist(req, res, next) {
   if (env.mpesa.env !== 'production') return next();
 
-  const ip = normalizeIp(req.ip);
+  const ip = extractClientIp(req);
 
   if (!SAFARICOM_IPS.includes(ip)) {
     console.warn('[mpesa] callback rejected — IP not allowed', {
       ip,
+      reqIp: req.ip,
       xff: req.headers['x-forwarded-for'] || null,
       path: req.originalUrl,
     });
