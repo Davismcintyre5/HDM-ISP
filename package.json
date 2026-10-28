@@ -17,7 +17,7 @@
     "admin": "node scripts/admin.js",
     "seed": "node scripts/seed.js",
     "dns": "node scripts/dnsSet.js",
-    "build:": "npm --prefix client run build",
+    "build": "npm --prefix client run build",
     "build:pwa": "npm --prefix client run pwa:assets && npm --prefix client run build",
     "start:prod": "npm run build:pwa && node server.js"
   },
