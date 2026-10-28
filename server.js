@@ -24,7 +24,12 @@ const { port: PORT, appName: APP_NAME, nodeEnv: NODE_ENV } = config;
 
 const IS_PROD = NODE_ENV === 'production';
 
-app.set('trust proxy', 1);
+const TRUST_PROXY_HOPS =
+  process.env.RENDER ? 2 :
+  process.env.TRUST_PROXY_HOPS ? Number(process.env.TRUST_PROXY_HOPS) :
+  1;
+
+app.set('trust proxy', TRUST_PROXY_HOPS);
 app.disable('x-powered-by');
 
 function findDir(candidates) {
@@ -94,6 +99,7 @@ function logConfigStatus() {
       `  Keep alive   : ${config.keepAlive.enabled ? `on (verbose ${config.keepAlive.verbose ? 'on' : 'off'})` : 'off'}`,
       `  CORS         : ${config.corsOrigins.length} origin(s)`,
       '─────────────────────────────────────────────',
+      `  Trust proxy  : ${TRUST_PROXY_HOPS} hop${TRUST_PROXY_HOPS === 1 ? '' : 's'}${process.env.RENDER ? ' (Render)' : ''}`,
       `  Client dist  : ${exists(CLIENT_INDEX) ? 'OK' : 'MISSING'} — ${CLIENT_DIST}`,
       `  Portal dir   : ${exists(PORTAL_INDEX) ? 'OK' : 'MISSING'} — ${PORTAL_DIR}`,
       '─────────────────────────────────────────────',
@@ -192,7 +198,7 @@ async function start() {
     console.log(
       `[startup] ${APP_NAME} ready on ${config.appUrl} (portal ${
         fs.existsSync(PORTAL_INDEX) ? `${config.appUrl}/portal` : 'not installed'
-      })`
+      }, trust-proxy ${TRUST_PROXY_HOPS})`
     );
 
     keepAlive.startKeepAlive();

@@ -18,14 +18,20 @@ const SAFARICOM_IPS = [
   '196.201.212.69',
 ];
 
+function normalizeIp(ip) {
+  if (!ip) return '';
+  return String(ip).replace(/^::ffff:/, '').trim();
+}
+
 module.exports = function mpesaIpAllowlist(req, res, next) {
   if (env.mpesa.env !== 'production') return next();
 
-  const ip = String(req.ip || '').replace(/^::ffff:/, '').trim();
+  const ip = normalizeIp(req.ip);
 
   if (!SAFARICOM_IPS.includes(ip)) {
     console.warn('[mpesa] callback rejected — IP not allowed', {
       ip,
+      xff: req.headers['x-forwarded-for'] || null,
       path: req.originalUrl,
     });
     return next(ApiError.forbidden('Source IP not allowed'));
