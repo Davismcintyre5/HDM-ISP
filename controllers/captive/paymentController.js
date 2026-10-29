@@ -6,13 +6,13 @@ const Provider = require('../../models/admin/Provider');
 const Voucher = require('../../models/provider/Voucher');
 const Customer = require('../../models/provider/Customer');
 const mpesaService = require('../../services/mpesaService');
+const { resolveMpesaConfig, sanitizeForLog } = require('../../services/mpesaResolverService');
 const emailService = require('../../services/emailService');
 const smsService = require('../../services/smsService');
 const notificationService = require('../../services/notificationService');
 const ApiError = require('../../utils/apiError');
 const { success, created } = require('../../utils/apiResponse');
 const asyncHandler = require('../../utils/asyncHandler');
-const config = require('../../config/env');
 const { generateVoucherCode } = require('../../utils/voucherCode');
 
 function validityMs(plan) {
@@ -139,6 +139,9 @@ const initiateStk = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Invalid phone number');
   }
 
+  const mpesaConfig = await resolveMpesaConfig(provider._id);
+  console.log('[payment] stk config:', sanitizeForLog(mpesaConfig));
+
   const accountRef = `WIFI-${String(providerId).slice(-6)}-${String(planId).slice(-6)}`;
 
   const result = await mpesaService.initiateSTKPush({
@@ -146,6 +149,7 @@ const initiateStk = asyncHandler(async (req, res) => {
     amount: plan.price,
     accountReference: accountRef,
     description: `${provider.name} ${plan.name}`,
+    config: mpesaConfig,
   });
 
   if (!result.success) {
@@ -165,6 +169,9 @@ const initiateStk = asyncHandler(async (req, res) => {
     merchantRequestId: result.merchantRequestId,
     status: 'pending',
     kind: 'customer_purchase',
+    mpesaMode: mpesaConfig.mode,
+    mpesaShortcode: mpesaConfig.shortcode || null,
+    mpesaTillNumber: mpesaConfig.tillNumber || null,
   });
 
   return created(res, {
@@ -184,8 +191,10 @@ const paymentStatus = asyncHandler(async (req, res) => {
   const tx = await Transaction.findOne({ checkoutRequestId }).lean();
   if (!tx) throw ApiError.notFound('Transaction not found');
 
+  const mpesaConfig = await resolveMpesaConfig(tx.providerId);
+
   if (tx.status === 'pending') {
-    const query = await mpesaService.querySTKStatus(checkoutRequestId);
+    const query = await mpesaService.querySTKStatus(checkoutRequestId, mpesaConfig);
 
     if (
       query.success &&

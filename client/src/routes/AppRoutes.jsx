@@ -28,6 +28,7 @@ import TransactionDetail from '../pages/app/TransactionDetail';
 import Reports from '../pages/app/Reports';
 import Notifications from '../pages/app/Notifications';
 import Settings from '../pages/app/Settings';
+import MpesaSettings from '../pages/app/MpesaSettings';
 import Profile from '../pages/app/Profile';
 import Billing from '../pages/app/Billing';
 import Invoices from '../pages/app/Invoices';
@@ -69,6 +70,7 @@ export default function AppRoutes() {
           <Route path="/transactions/:id" element={<TransactionDetail />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/settings/mpesa" element={<MpesaSettings />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/billing" element={<Billing />} />

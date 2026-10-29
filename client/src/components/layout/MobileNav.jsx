@@ -7,6 +7,7 @@ import {
   Users,
   Ticket,
   Receipt,
+  CreditCard,
   BarChart3,
   Bell,
   Settings,
@@ -23,8 +24,10 @@ const NAV = [
   { to: '/customers', label: 'Customers', icon: Users },
   { to: '/vouchers', label: 'Vouchers', icon: Ticket },
   { to: '/transactions', label: 'Transactions', icon: Receipt },
+  { to: '/billing', label: 'Billing', icon: CreditCard },
   { to: '/reports', label: 'Reports', icon: BarChart3 },
   { to: '/notifications', label: 'Notifications', icon: Bell, badge: true },
+  { to: '/settings/mpesa', label: 'Payment Settings', icon: CreditCard },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 

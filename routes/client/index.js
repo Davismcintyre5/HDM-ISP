@@ -6,8 +6,6 @@ const router = express.Router();
 const providerAuth = require('../../middleware/provider/auth');
 const providerScope = require('../../middleware/provider/scope');
 
-router.use('/manifest', require('./manifest'));
-
 router.use(providerAuth);
 router.use(providerScope);
 
@@ -22,6 +20,7 @@ router.use('/transactions', require('./transactionRoutes'));
 router.use('/reports', require('./reportRoutes'));
 router.use('/renewals', require('./renewalRoutes'));
 router.use('/notifications', require('./notificationRoutes'));
+router.use('/settings/mpesa', require('./mpesaSettingsRoutes'));
 router.use('/settings', require('./settingsRoutes'));
 
 module.exports = router;

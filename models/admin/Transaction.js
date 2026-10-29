@@ -4,7 +4,11 @@ const mongoose = require('mongoose');
 
 const schema = new mongoose.Schema(
   {
-    providerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Provider', index: true },
+    providerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Provider',
+      index: true,
+    },
     customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
     planId: { type: mongoose.Schema.Types.ObjectId, ref: 'Plan' },
     invoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', index: true },
@@ -27,6 +31,14 @@ const schema = new mongoose.Schema(
       default: 'customer_purchase',
       index: true,
     },
+    mpesaMode: {
+      type: String,
+      enum: ['own', 'shared', 'global'],
+      default: 'global',
+      index: true,
+    },
+    mpesaShortcode: { type: String, default: null },
+    mpesaTillNumber: { type: String, default: null },
     voucherId: { type: mongoose.Schema.Types.ObjectId, ref: 'Voucher' },
     rawCallback: { type: mongoose.Schema.Types.Mixed },
   },
@@ -36,5 +48,6 @@ const schema = new mongoose.Schema(
 schema.index({ providerId: 1, createdAt: -1 });
 schema.index({ providerId: 1, phone: 1, createdAt: -1 });
 schema.index({ providerId: 1, kind: 1, createdAt: -1 });
+schema.index({ providerId: 1, mpesaMode: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Transaction', schema);

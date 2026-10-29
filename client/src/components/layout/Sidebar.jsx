@@ -25,6 +25,7 @@ const NAV = [
   { to: '/billing', label: 'Billing', icon: CreditCard },
   { to: '/reports', label: 'Reports', icon: BarChart3 },
   { to: '/notifications', label: 'Notifications', icon: Bell, badge: true },
+  { to: '/settings/mpesa', label: 'Payment Settings', icon: CreditCard },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 

@@ -7,6 +7,7 @@ const Transaction = require('../../models/admin/Transaction');
 const invoiceService = require('../../services/invoiceService');
 const emailService = require('../../services/emailService');
 const mpesaService = require('../../services/mpesaService');
+const { resolveMpesaConfig, sanitizeForLog } = require('../../services/mpesaResolverService');
 const notificationService = require('../../services/notificationService');
 const ApiError = require('../../utils/apiError');
 const { success, created, paginated } = require('../../utils/apiResponse');
@@ -314,11 +315,15 @@ const payInvoiceStk = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Invalid phone number');
   }
 
+  const mpesaConfig = await resolveMpesaConfig(req.user.providerId);
+  console.log('[billing] stk config:', sanitizeForLog(mpesaConfig));
+
   const result = await mpesaService.initiateSTKPush({
     phone: normalized,
     amount: invoice.amountDue,
     accountReference: invoice.invoiceNumber,
     description: `Invoice ${invoice.invoiceNumber}`,
+    config: mpesaConfig,
   });
 
   if (!result.success) {
@@ -339,6 +344,9 @@ const payInvoiceStk = asyncHandler(async (req, res) => {
     merchantRequestId: result.merchantRequestId,
     status: 'pending',
     kind: 'provider_subscription',
+    mpesaMode: mpesaConfig.mode,
+    mpesaShortcode: mpesaConfig.shortcode || null,
+    mpesaTillNumber: mpesaConfig.tillNumber || null,
   });
 
   return created(res, {
@@ -425,7 +433,9 @@ const getInvoicePaymentStatus = asyncHandler(async (req, res) => {
   if (!tx) throw ApiError.notFound('Transaction not found');
 
   if (tx.status === 'pending' && tx.resultCode !== 'MANUAL') {
-    const query = await mpesaService.querySTKStatus(checkoutRequestId);
+    const mpesaConfig = await resolveMpesaConfig(tx.providerId);
+    const query = await mpesaService.querySTKStatus(checkoutRequestId, mpesaConfig);
+
     if (
       query.success &&
       query.resultCode !== '500.001.1001' &&

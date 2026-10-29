@@ -31,7 +31,7 @@ const RESULT_CODES = {
 
 let LOGGER = console;
 
-let CONFIG = {
+const DEFAULT_CONFIG = {
   baseUrl: process.env.MPESA_BASE_URL || 'https://api.safaricom.co.ke',
   consumerKey: process.env.MPESA_CONSUMER_KEY,
   consumerSecret: process.env.MPESA_CONSUMER_SECRET,
@@ -42,7 +42,10 @@ let CONFIG = {
   transactionType: process.env.MPESA_TRANSACTION_TYPE || 'CustomerBuyGoodsOnline',
 };
 
-let tokenCache = { token: null, expiresAt: 0 };
+let CONFIG = { ...DEFAULT_CONFIG };
+
+const tokenCache = new Map();
+const TOKEN_CACHE_TTL_MS = 55 * 60 * 1000;
 
 const seenCallbacks = new Map();
 const CALLBACK_TTL_MS = 24 * 60 * 60 * 1000;
@@ -57,7 +60,6 @@ function pruneSeenCallbacks() {
 function configure(overrides = {}) {
   const { logger, ...rest } = overrides;
   CONFIG = { ...CONFIG, ...rest };
-
   if (logger) LOGGER = logger;
 
   if (
@@ -65,7 +67,7 @@ function configure(overrides = {}) {
     'consumerSecret' in rest ||
     'baseUrl' in rest
   ) {
-    tokenCache = { token: null, expiresAt: 0 };
+    tokenCache.clear();
   }
 }
 
@@ -73,34 +75,56 @@ function getConfig() {
   return { ...CONFIG };
 }
 
-async function getAccessToken() {
-  const now = Date.now();
+function normalizeConfig(config) {
+  if (!config) return CONFIG;
+  return {
+    baseUrl: config.baseUrl || CONFIG.baseUrl,
+    consumerKey: config.consumerKey || CONFIG.consumerKey,
+    consumerSecret: config.consumerSecret || CONFIG.consumerSecret,
+    shortCode: config.shortCode || config.shortcode || CONFIG.shortCode,
+    tillNumber: config.tillNumber ?? CONFIG.tillNumber,
+    passkey: config.passkey || CONFIG.passkey,
+    callbackUrl: config.callbackUrl || CONFIG.callbackUrl,
+    transactionType: config.transactionType || CONFIG.transactionType,
+  };
+}
 
-  if (tokenCache.token && tokenCache.expiresAt > now + 60000) {
-    return tokenCache.token;
-  }
+function tokenCacheKey(cfg) {
+  return `${cfg.baseUrl}|${cfg.consumerKey}|${cfg.consumerSecret}`;
+}
 
-  if (!CONFIG.consumerKey || !CONFIG.consumerSecret) {
+async function getAccessToken(config = null) {
+  const cfg = normalizeConfig(config);
+
+  if (!cfg.consumerKey || !cfg.consumerSecret) {
     throw new MpesaError('M-PESA credentials not configured', 'CONFIG_MISSING');
   }
 
+  const key = tokenCacheKey(cfg);
+  const cached = tokenCache.get(key);
+  const now = Date.now();
+
+  if (cached && cached.expiresAt > now + 60000) {
+    return cached.token;
+  }
+
   const auth = Buffer.from(
-    `${CONFIG.consumerKey}:${CONFIG.consumerSecret}`
+    `${cfg.consumerKey}:${cfg.consumerSecret}`
   ).toString('base64');
 
   try {
     const { data } = await axios.get(
-      `${CONFIG.baseUrl}/oauth/v1/generate?grant_type=client_credentials`,
+      `${cfg.baseUrl}/oauth/v1/generate?grant_type=client_credentials`,
       {
         headers: { Authorization: `Basic ${auth}` },
         timeout: 15000,
       }
     );
 
-    tokenCache = {
+    tokenCache.set(key, {
       token: data.access_token,
-      expiresAt: now + Number(data.expires_in) * 1000,
-    };
+      expiresAt: now + Math.min(Number(data.expires_in) * 1000, TOKEN_CACHE_TTL_MS),
+    });
 
     return data.access_token;
   } catch (error) {
@@ -127,9 +151,9 @@ function getTimestamp() {
   );
 }
 
-function generatePassword(timestamp) {
+function generatePassword(shortCode, passkey, timestamp) {
   return Buffer.from(
-    `${CONFIG.shortCode}${CONFIG.passkey}${timestamp}`
+    `${shortCode}${passkey}${timestamp}`
   ).toString('base64');
 }
 
@@ -145,43 +169,48 @@ async function initiateSTKPush({
   amount,
   accountReference = 'Subscription',
   description = 'App Subscription Payment',
+  config = null,
 }) {
-  if (!CONFIG.shortCode || !CONFIG.passkey || !CONFIG.callbackUrl) {
+  const cfg = normalizeConfig(config);
+
+  if (!cfg.shortCode || !cfg.passkey || !cfg.callbackUrl) {
     return {
       success: false,
-      error: { errorMessage: 'M-PESA config missing (shortCode, passkey, callbackUrl)' },
+      error: {
+        errorMessage: 'M-PESA config missing (shortCode, passkey, callbackUrl)',
+      },
     };
   }
 
   let token;
   try {
-    token = await getAccessToken();
+    token = await getAccessToken(cfg);
   } catch (err) {
     return { success: false, error: { errorMessage: err.message, code: err.code } };
   }
 
   const timestamp = getTimestamp();
-  const password = generatePassword(timestamp);
+  const password = generatePassword(cfg.shortCode, cfg.passkey, timestamp);
   const normalizedPhone = normalizePhone(phone);
-  const partyB = CONFIG.tillNumber || CONFIG.shortCode;
+  const partyB = cfg.tillNumber || cfg.shortCode;
 
   const payload = {
-    BusinessShortCode: CONFIG.shortCode,
+    BusinessShortCode: cfg.shortCode,
     Password: password,
     Timestamp: timestamp,
-    TransactionType: CONFIG.transactionType,
+    TransactionType: cfg.transactionType,
     Amount: Math.round(amount),
     PartyA: normalizedPhone,
     PartyB: partyB,
     PhoneNumber: normalizedPhone,
-    CallBackURL: CONFIG.callbackUrl,
+    CallBackURL: cfg.callbackUrl,
     AccountReference: accountReference,
     TransactionDesc: description,
   };
 
   try {
     const { data } = await axios.post(
-      `${CONFIG.baseUrl}/mpesa/stkpush/v1/processrequest`,
+      `${cfg.baseUrl}/mpesa/stkpush/v1/processrequest`,
       payload,
       {
         headers: {
@@ -207,19 +236,21 @@ async function initiateSTKPush({
   }
 }
 
-async function querySTKStatus(checkoutRequestId) {
+async function querySTKStatus(checkoutRequestId, config = null) {
+  const cfg = normalizeConfig(config);
+
   let token;
   try {
-    token = await getAccessToken();
+    token = await getAccessToken(cfg);
   } catch (err) {
     return { success: false, error: { errorMessage: err.message, code: err.code } };
   }
 
   const timestamp = getTimestamp();
-  const password = generatePassword(timestamp);
+  const password = generatePassword(cfg.shortCode, cfg.passkey, timestamp);
 
   const payload = {
-    BusinessShortCode: CONFIG.shortCode,
+    BusinessShortCode: cfg.shortCode,
     Password: password,
     Timestamp: timestamp,
     CheckoutRequestID: checkoutRequestId,
@@ -227,7 +258,7 @@ async function querySTKStatus(checkoutRequestId) {
 
   try {
     const { data } = await axios.post(
-      `${CONFIG.baseUrl}/mpesa/stkpushquery/v1/query`,
+      `${cfg.baseUrl}/mpesa/stkpushquery/v1/query`,
       payload,
       {
         headers: {
@@ -291,7 +322,7 @@ function isDuplicateCallback(checkoutRequestId) {
   return false;
 }
 
-async function waitForResult(checkoutRequestId, { timeoutMs = 300000, intervalMs = 3000 } = {}) {
+async function waitForResult(checkoutRequestId, { timeoutMs = 300000, intervalMs = 3000, config = null } = {}) {
   const start = Date.now();
   const pendingCodes = new Set([
     RESULT_CODES.TRANSACTION_NOT_FOUND,
@@ -300,7 +331,7 @@ async function waitForResult(checkoutRequestId, { timeoutMs = 300000, intervalMs
   ]);
 
   while (Date.now() - start < timeoutMs) {
-    const r = await querySTKStatus(checkoutRequestId);
+    const r = await querySTKStatus(checkoutRequestId, config);
     if (r.success && !pendingCodes.has(r.resultCode)) {
       return r;
     }

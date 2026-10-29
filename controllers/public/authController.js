@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const PendingProvider = require('../../models/admin/PendingProvider');
 const Provider = require('../../models/admin/Provider');
 const ProviderUser = require('../../models/provider/User');
+const ProviderPaymentMethod = require('../../models/provider/PaymentMethod');
 const Admin = require('../../models/admin/Admin');
 const BillingPlan = require('../../models/admin/BillingPlan');
 const ApiError = require('../../utils/apiError');
@@ -78,6 +79,30 @@ function buildProviderPayload(provider) {
     portalUrl: provider.slug ? `https://${provider.slug}.hdm.co.ke` : null,
     renewUrl: isSuspended || isExpired ? `${config.providerUrl}/billing` : null,
   };
+}
+
+async function seedDefaultMpesaSettings(providerId) {
+  try {
+    await ProviderPaymentMethod.updateOne(
+      { providerId, code: 'mpesa_stk' },
+      {
+        $setOnInsert: {
+          providerId,
+          code: 'mpesa_stk',
+          displayName: 'M-Pesa',
+          isEnabled: true,
+          sortOrder: 1,
+          config: { mode: 'global' },
+        },
+      },
+      { upsert: true }
+    );
+  } catch (err) {
+    console.error(
+      '[authController] mpesa settings seed failed:',
+      err.message
+    );
+  }
 }
 
 const register = asyncHandler(async (req, res) => {
@@ -237,6 +262,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
   });
 
   await seedProvider(provider._id).catch(() => {});
+  await seedDefaultMpesaSettings(provider._id);
 
   pending.status = 'approved';
   pending.verifiedAt = now;
