@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Menu, X, LayoutDashboard } from 'lucide-react';
 import Logo from '../ui/Logo';
 import ThemeToggle from '../ui/ThemeToggle';
 import Button from '../ui/Button';
 import IconButton from '../ui/IconButton';
+import { useAuth } from '../../context/AuthContext';
 import { useSite } from '../../context/SiteContext';
 import { cn } from '../../utils/cn';
 
@@ -18,13 +19,19 @@ const NAV = [
 export default function PublicHeader() {
   const [open, setOpen] = useState(false);
   const { siteSettings } = useSite();
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   const registrationOpen = siteSettings?.registration_open !== false;
+
+  function launchApp() {
+    navigate('/dashboard');
+  }
 
   return (
     <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-950/80 backdrop-blur border-b border-slate-200 dark:border-slate-800">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-        <Logo href="/" size="md" />
+        <Logo href="/" />
 
         <nav className="hidden md:flex items-center gap-1">
           {NAV.map((n) => (
@@ -48,14 +55,31 @@ export default function PublicHeader() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Link to="/login" className="hidden sm:block">
-            <Button variant="secondary" size="sm">Sign in</Button>
-          </Link>
-          {registrationOpen && (
-            <Link to="/register" className="hidden sm:block">
-              <Button size="sm">Get started</Button>
-            </Link>
+
+          {isAuthenticated ? (
+            <Button
+              size="sm"
+              leftIcon={<LayoutDashboard className="h-4 w-4" />}
+              onClick={launchApp}
+              className="hidden sm:inline-flex"
+            >
+              Launch App
+            </Button>
+          ) : (
+            <>
+              <Link to="/login" className="hidden sm:block">
+                <Button variant="secondary" size="sm">
+                  Sign in
+                </Button>
+              </Link>
+              {registrationOpen && (
+                <Link to="/register" className="hidden sm:block">
+                  <Button size="sm">Get started</Button>
+                </Link>
+              )}
+            </>
           )}
+
           <IconButton
             ariaLabel="Menu"
             className="md:hidden"
@@ -87,13 +111,33 @@ export default function PublicHeader() {
               </NavLink>
             ))}
             <div className="flex items-center gap-2 pt-2">
-              <Link to="/login" className="flex-1">
-                <Button variant="secondary" size="sm" fullWidth>Sign in</Button>
-              </Link>
-              {registrationOpen && (
-                <Link to="/register" className="flex-1">
-                  <Button size="sm" fullWidth>Get started</Button>
-                </Link>
+              {isAuthenticated ? (
+                <Button
+                  size="sm"
+                  fullWidth
+                  leftIcon={<LayoutDashboard className="h-4 w-4" />}
+                  onClick={() => {
+                    setOpen(false);
+                    launchApp();
+                  }}
+                >
+                  Launch App
+                </Button>
+              ) : (
+                <>
+                  <Link to="/login" className="flex-1" onClick={() => setOpen(false)}>
+                    <Button variant="secondary" size="sm" fullWidth>
+                      Sign in
+                    </Button>
+                  </Link>
+                  {registrationOpen && (
+                    <Link to="/register" className="flex-1" onClick={() => setOpen(false)}>
+                      <Button size="sm" fullWidth>
+                        Get started
+                      </Button>
+                    </Link>
+                  )}
+                </>
               )}
             </div>
           </div>

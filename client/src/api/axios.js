@@ -18,6 +18,12 @@ function isPublicAuth(url) {
   return PUBLIC_AUTH_PATHS.some((p) => url?.includes(p));
 }
 
+function notifyTokenChange() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('hdm:token-change'));
+  }
+}
+
 api.interceptors.request.use((config) => {
   const token = storage.get(KEYS.ACCESS);
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -42,13 +48,18 @@ async function performRefresh() {
 
   storage.set(KEYS.ACCESS, accessToken);
   if (newRefresh) storage.set(KEYS.REFRESH, newRefresh);
+  notifyTokenChange();
   return accessToken;
 }
 
 function isOnBillingOrProfile() {
   if (typeof window === 'undefined') return false;
   const path = window.location.pathname;
-  return path === '/billing' || path.startsWith('/billing/') || path === '/profile';
+  return (
+    path === '/billing' ||
+    path.startsWith('/billing/') ||
+    path === '/profile'
+  );
 }
 
 api.interceptors.response.use(
@@ -84,7 +95,12 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if (status !== 401 || !original || original._retry || isPublicAuth(original.url)) {
+    if (
+      status !== 401 ||
+      !original ||
+      original._retry ||
+      isPublicAuth(original.url)
+    ) {
       return Promise.reject(error);
     }
 
@@ -100,7 +116,11 @@ api.interceptors.response.use(
     } catch (e) {
       refreshingPromise = null;
       storage.clearProviderSession();
-      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      notifyTokenChange();
+      if (
+        typeof window !== 'undefined' &&
+        !window.location.pathname.startsWith('/login')
+      ) {
         window.location.assign('/login');
       }
       return Promise.reject(e);
@@ -118,4 +138,4 @@ function trimParams(params) {
   return Object.keys(out).length ? out : undefined;
 }
 
-export { trimParams };
+export { trimParams, notifyTokenChange };

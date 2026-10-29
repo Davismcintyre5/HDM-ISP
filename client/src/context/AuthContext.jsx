@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { login as loginRequest } from '../api/auth';
 import { getProfile } from '../api/profile';
+import { notifyTokenChange } from '../api/axios';
 import { KEYS, storage } from '../utils/storage';
 
 const AuthContext = createContext(null);
@@ -26,6 +27,7 @@ export function AuthProvider({ children }) {
         setToken(null);
         setUser(null);
         setProvider(null);
+        notifyTokenChange();
       })
       .finally(() => setBooting(false));
   }, []);
@@ -33,8 +35,10 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const { data } = await loginRequest(email, password);
     const payload = data.data;
+
     storage.set(KEYS.ACCESS, payload.accessToken);
     if (payload.refreshToken) storage.set(KEYS.REFRESH, payload.refreshToken);
+    notifyTokenChange();
     setToken(payload.accessToken);
 
     if (payload.provider) setProvider(payload.provider);
@@ -52,6 +56,7 @@ export function AuthProvider({ children }) {
 
   function logout() {
     storage.clearProviderSession();
+    notifyTokenChange();
     setToken(null);
     setUser(null);
     setProvider(null);

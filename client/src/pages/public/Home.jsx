@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Wifi,
   Ticket,
@@ -6,10 +6,12 @@ import {
   BarChart3,
   Shield,
   Smartphone,
+  LayoutDashboard,
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
+import { useAuth } from '../../context/AuthContext';
 
 const FEATURES = [
   {
@@ -60,6 +62,13 @@ const FAQ_TEASER = [
 ];
 
 export default function Home() {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
+  function launchApp() {
+    navigate('/dashboard');
+  }
+
   return (
     <div>
       <section className="border-b border-slate-200 dark:border-slate-800 bg-gradient-to-b from-brand-50 to-white dark:from-slate-900 dark:to-slate-950">
@@ -75,14 +84,22 @@ export default function Home() {
             Start free for 14 days.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-            <Link to="/register">
-              <Button size="lg">Start free trial</Button>
-            </Link>
-            <Link to="/login">
-              <Button size="lg" variant="secondary">
-                Sign in
+            {isAuthenticated ? (
+              <Button size="lg" leftIcon={<LayoutDashboard className="h-5 w-5" />} onClick={launchApp}>
+                Launch App
               </Button>
-            </Link>
+            ) : (
+              <>
+                <Link to="/register">
+                  <Button size="lg">Start free trial</Button>
+                </Link>
+                <Link to="/login">
+                  <Button size="lg" variant="secondary">
+                    Sign in
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -164,21 +181,43 @@ export default function Home() {
 
       <section className="border-t border-slate-200 dark:border-slate-800 bg-brand-600 dark:bg-brand-700 text-white">
         <div className="max-w-4xl mx-auto px-4 py-14 text-center">
-          <h2 className="text-2xl md:text-3xl font-bold">Ready to start selling?</h2>
+          <h2 className="text-2xl md:text-3xl font-bold">
+            {isAuthenticated ? 'Ready when you are' : 'Ready to start selling?'}
+          </h2>
           <p className="mt-2 text-white/90">
-            Set up your first router and generate your first voucher in under 10 minutes.
+            {isAuthenticated
+              ? 'Jump back into your dashboard and keep growing.'
+              : 'Set up your first router and generate your first voucher in under 10 minutes.'}
           </p>
           <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-            <Link to="/register">
-              <Button size="lg" variant="secondary" className="bg-white text-brand-700 hover:bg-slate-100">
-                Create free account
+            {isAuthenticated ? (
+              <Button
+                size="lg"
+                variant="secondary"
+                className="bg-white text-brand-700 hover:bg-slate-100"
+                leftIcon={<LayoutDashboard className="h-5 w-5" />}
+                onClick={launchApp}
+              >
+                Launch App
               </Button>
-            </Link>
-            <Link to="/contact">
-              <Button size="lg" variant="ghost" className="text-white hover:bg-white/10">
-                Book a demo
-              </Button>
-            </Link>
+            ) : (
+              <>
+                <Link to="/register">
+                  <Button
+                    size="lg"
+                    variant="secondary"
+                    className="bg-white text-brand-700 hover:bg-slate-100"
+                  >
+                    Create free account
+                  </Button>
+                </Link>
+                <Link to="/contact">
+                  <Button size="lg" variant="ghost" className="text-white hover:bg-white/10">
+                    Book a demo
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>

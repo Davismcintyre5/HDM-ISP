@@ -1,14 +1,16 @@
 import { useEffect } from 'react';
 import { KEYS, storage } from '../utils/storage';
+import { api } from '../api/axios';
 
 const STATIC = '/manifest.webmanifest';
 
 function buildUrl() {
   const token = storage.get(KEYS.ACCESS);
   const valid = typeof token === 'string' && token.length > 20;
-  return valid
-    ? `/api/client/manifest?token=${encodeURIComponent(token)}`
-    : STATIC;
+  if (!valid) return STATIC;
+
+  const base = (api.defaults.baseURL || '').replace(/\/+$/, '');
+  return `${base}/api/client/manifest?token=${encodeURIComponent(token)}`;
 }
 
 export default function ManifestLink() {
@@ -21,16 +23,21 @@ export default function ManifestLink() {
         document.head.appendChild(link);
       }
       const next = buildUrl();
-      if (link.getAttribute('href') !== next) link.setAttribute('href', next);
+      if (link.getAttribute('href') !== next) {
+        link.setAttribute('href', next);
+      }
     }
 
     sync();
-    const id = setInterval(sync, 5000);
+
+    window.addEventListener('hdm:token-change', sync);
     window.addEventListener('storage', sync);
+    const id = setInterval(sync, 5000);
 
     return () => {
-      clearInterval(id);
+      window.removeEventListener('hdm:token-change', sync);
       window.removeEventListener('storage', sync);
+      clearInterval(id);
     };
   }, []);
 
